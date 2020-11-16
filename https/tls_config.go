@@ -25,11 +25,13 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 	config_util "github.com/prometheus/common/config"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 )
 
 var (
-	errNoTLSConfig = errors.New("TLS config is not present")
+	errNoTLSConfig   = errors.New("TLS config is not present")
+	cliWebConfigFlag string
 )
 
 type Config struct {
@@ -164,8 +166,24 @@ func ConfigToTLSConfig(c *TLSStruct) (*tls.Config, error) {
 	return cfg, nil
 }
 
-// Listen starts the server on the given address. If tlsConfigPath isn't empty the server connection will be started using TLS.
+// AddFlags adds the flags used by this package to the Kingpin application.
+// To use the default Kingpin application, call AddFlags(kingpin.CommandLine)
+func AddFlags(a *kingpin.Application) error {
+	a.Flag(
+		"web.config",
+		"Path to config yaml file that can enable TLS or authentication.",
+	).Default("").StringVar(&cliWebConfigFlag)
+	return nil
+}
+
+// Listen starts the server on the given address. If tlsConfigPath or
+// tlsConfigPath aren't empty the server connection will be started using TLS.
 func Listen(server *http.Server, tlsConfigPath string, logger log.Logger) error {
+	// If no TLS config file is passed, use the one from the command line.
+	if tlsConfigPath == "" {
+		tlsConfigPath = cliWebConfigFlag
+	}
+
 	if tlsConfigPath == "" {
 		level.Info(logger).Log("msg", "TLS is disabled.", "http2", false)
 		return server.ListenAndServe()

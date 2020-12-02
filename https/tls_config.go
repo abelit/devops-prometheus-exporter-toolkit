@@ -168,12 +168,11 @@ func ConfigToTLSConfig(c *TLSStruct) (*tls.Config, error) {
 
 // AddFlags adds the flags used by this package to the Kingpin application.
 // To use the default Kingpin application, call AddFlags(kingpin.CommandLine)
-func AddFlags(a *kingpin.Application) error {
+func AddFlags(a *kingpin.Application) {
 	a.Flag(
 		"web.config",
 		"Path to config yaml file that can enable TLS or authentication.",
 	).Default("").StringVar(&cliWebConfigFlag)
-	return nil
 }
 
 // Listen starts the server on the given address. If tlsConfigPath or

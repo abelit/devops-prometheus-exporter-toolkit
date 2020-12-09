@@ -319,7 +319,7 @@ func TestConfigReloading(t *testing.T) {
 				recordConnectionError(errors.New("Panic starting server"))
 			}
 		}()
-		err := Listen(server, badYAMLPath, testlogger)
+		err := Listen(&TLSConfig{Path: badYAMLPath}, server, testlogger)
 		recordConnectionError(err)
 	}()
 
@@ -396,7 +396,7 @@ func (test *TestInputs) Test(t *testing.T) {
 				recordConnectionError(errors.New("Panic starting server"))
 			}
 		}()
-		err := Listen(server, test.YAMLConfigPath, testlogger)
+		err := Listen(&TLSConfig{Path: test.YAMLConfigPath}, server, testlogger)
 		recordConnectionError(err)
 	}()
 

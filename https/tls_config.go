@@ -25,14 +25,10 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 	config_util "github.com/prometheus/common/config"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 )
 
-var (
-	errNoTLSConfig   = errors.New("TLS config is not present")
-	cliWebConfigFlag string
-)
+var errNoTLSConfig = errors.New("TLS config is not present")
 
 type Config struct {
 	TLSConfig  TLSStruct                     `yaml:"tls_server_config"`
@@ -166,29 +162,21 @@ func ConfigToTLSConfig(c *TLSStruct) (*tls.Config, error) {
 	return cfg, nil
 }
 
-// AddFlags adds the flags used by this package to the Kingpin application.
-// To use the default Kingpin application, call AddFlags(kingpin.CommandLine)
-func AddFlags(a *kingpin.Application) {
-	a.Flag(
-		"web.config",
-		"Path to config yaml file that can enable TLS or authentication.",
-	).Default("").StringVar(&cliWebConfigFlag)
+// TLSConfig contains the configuration required to start an tls/basic auth server.
+type TLSConfig struct {
+	Path string // Path to the TLS/Basic auth configuration.
 }
 
-// Listen starts the server on the given address. If tlsConfigPath or
-// tlsConfigPath aren't empty the server connection will be started using TLS.
-func Listen(server *http.Server, tlsConfigPath string, logger log.Logger) error {
+// Listen starts the server on the given address. If cfg.Path is
+// not empty the server connection will be started using TLS or basic auth.
+func Listen(cfg *TLSConfig, server *http.Server, logger log.Logger) error {
 	// If no TLS config file is passed, use the one from the command line.
-	if tlsConfigPath == "" {
-		tlsConfigPath = cliWebConfigFlag
-	}
-
-	if tlsConfigPath == "" {
+	if cfg == nil || cfg.Path == "" {
 		level.Info(logger).Log("msg", "TLS is disabled.", "http2", false)
 		return server.ListenAndServe()
 	}
 
-	if err := validateUsers(tlsConfigPath); err != nil {
+	if err := validateUsers(cfg.Path); err != nil {
 		return err
 	}
 
@@ -198,12 +186,12 @@ func Listen(server *http.Server, tlsConfigPath string, logger log.Logger) error 
 		handler = server.Handler
 	}
 	server.Handler = &userAuthRoundtrip{
-		tlsConfigPath: tlsConfigPath,
+		tlsConfigPath: cfg.Path,
 		logger:        logger,
 		handler:       handler,
 	}
 
-	c, err := getConfig(tlsConfigPath)
+	c, err := getConfig(cfg.Path)
 	if err != nil {
 		return err
 	}
@@ -229,7 +217,7 @@ func Listen(server *http.Server, tlsConfigPath string, logger log.Logger) error 
 	// Set the GetConfigForClient method of the HTTPS server so that the config
 	// and certs are reloaded on new connections.
 	server.TLSConfig.GetConfigForClient = func(*tls.ClientHelloInfo) (*tls.Config, error) {
-		return getTLSConfig(tlsConfigPath)
+		return getTLSConfig(cfg.Path)
 	}
 	return server.ListenAndServeTLS("", "")
 }
